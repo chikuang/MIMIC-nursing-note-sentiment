@@ -7,7 +7,7 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir = "~/path to project/")
+#knitr::opts_knit$set(root.dir = "~/path to project/")
 ```
 
 ```{r libraries, include=FALSE}
@@ -24,9 +24,9 @@ library(survminer)
 
 set.seed(4375) # "HDSL"
 
-admissions_df <- read.csv("Data/patients_df.csv")
-sapsii_df <- read.csv("Data/sapsii_df.csv")
-notes_df <- fread("Data/notes_df_sntmnt.csv")
+admissions_df <- read.csv("../../../MIMIC/sentiment_data/patient_df.csv")
+sapsii_df <- read.csv("../../../MIMIC/sentiment_data/sapsii_df.csv")
+notes_df <- read_csv("../../../MIMIC/sentiment_data/notes_df_sntmnt.csv")
 
 notes_df$text <- NULL
 
@@ -51,8 +51,7 @@ notes_df <- notes_df[is.na(iserror)]
 analysis_df <- admissions_df
 
 setDT(analysis_df)
-analysis_df[dod != "", 
-            surv_time := difftime(as.Date(dod), as.Date(admittime), units="days")]
+analysis_df[dod != "", surv_time := difftime(as.Date(dod), as.Date(admittime), units="days")]
 # Remove patients with data entry error: death time recorded before admission.
 analysis_df <- analysis_df[is.na(surv_time) | surv_time >= 0]
 
@@ -102,7 +101,7 @@ analysis_df_w_pol <- analysis_df %>%
 # Mean polarity and subjectivity quartiles
 
 ```{r}
-output.folder <- "~/path to project/results"
+output.folder <- "../../../MIMIC/"
 
 gg_color_hue <- function(n) {
   hues = seq(15, 375, length = n + 1)

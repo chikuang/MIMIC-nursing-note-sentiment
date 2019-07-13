@@ -4,7 +4,7 @@ from textblob import TextBlob
 from textblob.sentiments import NaiveBayesAnalyzer
 
 script_dir = os.path.dirname(__file__)
-rel_path = '~/path to project/Data/notes_df.csv'
+rel_path = '~/../MIMIC/notes_df.csv'
 abs_file_path = os.path.join(script_dir, rel_path)
 
 nursing_notes_df = pd.read_csv(abs_file_path, header=0)

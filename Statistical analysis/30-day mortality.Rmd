@@ -7,14 +7,13 @@ output: pdf_document
   
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir = "~/path to project/")
+# knitr::opts_knit$set(root.dir = "~/path to project/")
 ```
 
 ```{r libraries, include=FALSE}
 library(data.table)
 library(rms)
-library(dplyr)
-library(ggplot2)
+library(tidyverse)
 library(gridExtra)
 library(xtable)
 library(caret)
@@ -29,11 +28,11 @@ library(questionr)
 ```{r main}
 set.seed(4375) # "HDSL"
 
-admissions_df <- read.csv("Data/patients_df.csv")
-sapsii_df <- read.csv("Data/sapsii_df.csv")
-notes_df <- fread("Data/notes_df_sntmnt.csv")
-mimicii_patients_df <- read.csv("Data/mimic2_patients_df.csv")
-mimicii_admissions_df <- read.csv("Data/mimic2_admissions_df.csv")
+admissions_df <- read.csv("../../../MIMIC/sentiment_data/patient_df.csv")
+sapsii_df <- read_csv("../../../MIMIC/sentiment_data/sapsii_df.csv")
+notes_df <- read_csv("../../../MIMIC/sentiment_data/notes_df_sntmnt.csv")
+mimicii_patients_df <- read.csv("../../../MIMIC/sentiment_data/mimic2_patients_df.csv")
+mimicii_admissions_df <- read.csv("../../../MIMIC/sentiment_data/mimic2_admissions_df.csv")
 
 notes_df$text <- NULL
 
@@ -129,14 +128,24 @@ t.test(a_df_counted_nonzeronotes_exp$n, a_df_counted_nonzeronotes_surv$n,
 
 notes_df <- notes_df %>% 
   group_by(hadm_id) %>% 
-  summarize(mean_polarity = mean(polarity),
+  #summarize(mean_polarity = mean(polarity),
+  #          mean_subjectivity = mean(subjectivity))
+  mutate(mean_polarity = mean(polarity),
             mean_subjectivity = mean(subjectivity))
-
 # joining notes by admission id.
-analysis_df <- analysis_df %>% left_join(notes_df, by="hadm_id", copy=TRUE)
+analysis_df <- analysis_df %>% left_join(notes_df, by="hadm_id", copy = TRUE)
+
+# Do we have to rename here?
+analysis_df <- analysis_df %>%
+  rename(icustay_id = icustay_id.x)
 
 # joining SAPS II and SOFA scores by ICU stay ID.
 analysis_df <- analysis_df %>% left_join(sapsii_df, by="icustay_id", copy=TRUE)
+
+
+### new add ( for the next chunk)
+analysis_df <- analysis_df %>%
+  rename(gender = gender.x, first_admit_age = first_admit_age.x)
 ```
 
 Notice there are some data where patients are recorded to be very old (~300 yrs old). This was done by MIMIC to anonymize patients over the age of 89.
@@ -144,6 +153,16 @@ Notice there are some data where patients are recorded to be very old (~300 yrs 
 However, in MIMIC-II, the ages of patients were recorded after death. Therefore, we will randomly sample ages from the >89 group from MIMIC-II and assign their ages to the >89 group from MIMIC-III. We will do so by gender/sex since as we will see, their age distributions are slightly different.
 
 ```{r}
+
+# rename mimicii columns
+mimicii_admissions_df <- mimicii_admissions_df %>%
+  rename(subject_id = SUBJECT_ID, hadm_id = HADM_ID,
+         admit_dt = ADMIT_DT, disch_dt = DISCH_DT)
+
+mimicii_patients_df <- mimicii_patients_df %>%
+  rename(subject_id = SUBJECT_ID, sex = SEX,
+         dob = DOB, dod = DOD,
+         hospital_expire_flag = HOSPITAL_EXPIRE_FLG)
 mimicii_age_dataset <- mimicii_admissions_df %>%
   group_by(subject_id) %>%
   arrange(admit_dt) %>%
@@ -167,10 +186,11 @@ analysis_df[gender == "M" & first_admit_age > 89]$first_admit_age <-
          size = nrow(analysis_df[gender == "M" & first_admit_age > 89]),
          replace = TRUE)
 
-analysis_df[gender == "F" & first_admit_age > 89]$first_admit_age <-
-  sample(mimicii_age_dataset[sex == "F" & first_admit_age > 89 & first_admit_age < 120]$first_admit_age,
-         size = nrow(analysis_df[gender == "F" & first_admit_age > 89]),
+analysis_df[gender == "M" & first_admit_age > 89]$first_admit_age <-
+  sample(mimicii_age_dataset[sex == "M" & first_admit_age > 89 & first_admit_age < 120]$first_admit_age,
+         size = nrow(analysis_df[gender == "M" & first_admit_age > 89]),
          replace = TRUE)
+
 
 analysis_df_w_pol <- analysis_df %>%
   filter(!is.na(mean_polarity)) 
@@ -201,7 +221,7 @@ sum(adf.expired$first_careunit == "TSICU") / nrow(adf.expired)
 # Perform asymptotic chi-square test of independence between the 
 # variables "first_careunit" and "mortality_30d". We use asymptotic test because
 # this problem is too large for Fisher's exact test.
-freq.table <- table(analysis_df_w_pol$mortality_30d, analysis_df_w_pol$first_careunit)
+freq.table <- table(analysis_df_w_pol$mortality_30d, analysis_df_w_pol$first_careunit.x)
 freq.table
 chisq.test(freq.table)
 
@@ -271,7 +291,7 @@ gg_color_hue <- function(n) {
 
 model_mortality_30d = glm(mortality_30d ~ mean_polarity + 
                             + mean_subjectivity + sapsii + 
-                            first_careunit + gender, 
+                            first_careunit.x + gender, 
                           family=binomial(link='logit'), 
                           data=analysis_df_w_pol)
 
