@@ -145,7 +145,7 @@ analysis_df <- analysis_df %>% left_join(sapsii_df, by="icustay_id", copy=TRUE)
 
 ### new add ( for the next chunk)
 analysis_df <- analysis_df %>%
-  rename(gender = gender.x, first_admit_age = first_admit_age.x)
+  rename(gender = gender.x, first_admit_age = first_admit_age.x, first_careunit = first_careunit.y)
 ```
 
 Notice there are some data where patients are recorded to be very old (~300 yrs old). This was done by MIMIC to anonymize patients over the age of 89.
@@ -279,7 +279,7 @@ spearman.test(analysis_df_w_pol$mean_subjectivity, analysis_df_w_pol$sapsii)
 
 # Fit logistic regression model and plot results
 
-```{r}
+```{r LR}
 
 analysis_df_w_pol$mean_polarity <- 10 * analysis_df_w_pol$mean_polarity
 analysis_df_w_pol$mean_subjectivity <- 10 * analysis_df_w_pol$mean_subjectivity
@@ -387,7 +387,7 @@ ggsave(file.path(output.folder,"mixture_histogram.tiff"), plot = mixture.histogr
 
 # Cross-validation and ROC
 
-```{r}
+```{r CV and ROC}
 # Reset data to where it was before modifying for plots
 analysis_df_w_pol <- analysis_df %>%
   filter(!is.na(mean_polarity))
@@ -421,12 +421,12 @@ train_control <- trainControl(method="repeatedcv", number=10, repeats=50,
                               summaryFunction = prSummary, classProbs = TRUE, savePredictions = FALSE)
 
 roc.model1 <- train(mortality_30d ~ 
-                     mean_polarity + mean_subjectivity + sapsii + first_careunit + gender, 
+                     mean_polarity + mean_subjectivity + sapsii + first_careunit.x + gender, 
                    data=analysis_df_w_pol, 
                    method="glm", family=binomial(), trControl=train_control)
 
 roc.model2 <- train(mortality_30d ~ 
-                     sapsii + first_careunit + gender, 
+                     sapsii + first_careunit.x + gender, 
                    data=analysis_df_w_pol, 
                    method="glm", family=binomial(), trControl=train_control)
 
@@ -435,7 +435,7 @@ roc.model2$results
 ```
 
 ### Bootstrap CI's
-```{r}
+```{r BS-CI}
 ### Paired method ###
 
 # Reset data to where it was before modifying for plots. 
@@ -452,12 +452,12 @@ train_control <- trainControl(method="repeatedcv", number=10, repeats=1,
 seed <- 4375
 set.seed(seed)
 roc.model1 <- train(mortality_30d ~ 
-                      mean_polarity + mean_subjectivity + sapsii + first_careunit + gender, 
+                      mean_polarity + mean_subjectivity + sapsii + first_careunit.x + gender, 
                     data=analysis_df_w_pol, 
                     method="glm", family=binomial(), trControl=train_control)
 set.seed(seed)
 roc.model2 <- train(mortality_30d ~ 
-                      sapsii + first_careunit + gender, 
+                      sapsii + first_careunit.x + gender, 
                     data=analysis_df_w_pol, 
                     method="glm", family=binomial(), trControl=train_control)
 

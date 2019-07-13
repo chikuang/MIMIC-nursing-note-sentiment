@@ -11,10 +11,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r libraries, include=FALSE}
-library(dplyr)
 library(data.table)
 library(survival)
-library(ggplot2)
+library(tidyverse)
 library(gridExtra)
 library(survminer)
 ```
