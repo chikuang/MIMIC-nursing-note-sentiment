@@ -306,7 +306,7 @@ lrm_30d <- lrm(model_mortality_30d$formula, data = analysis_df_w_pol)
 # Calculate Nagelkerke pseudo-R^2
 lrm_30d$stats["R2"]
 
-output.folder <- "~/path to project/results"
+output.folder = "../../../MIMIC/"
 
 analysis_df_w_pol$mean_polarity <- 0.1 * analysis_df_w_pol$mean_polarity
 analysis_df_w_pol$mean_subjectivity <- 0.1 * analysis_df_w_pol$mean_subjectivity
@@ -402,12 +402,12 @@ train_control <- trainControl(method="repeatedcv", number=10, repeats=50,
                               summaryFunction = twoClassSummary, classProbs = TRUE, savePredictions = FALSE)
 
 roc.model1 <- train(mortality_30d ~ 
-                     mean_polarity + mean_subjectivity + sapsii + first_careunit + gender, 
+                     mean_polarity + mean_subjectivity + sapsii + first_careunit.x + gender, 
                    data=analysis_df_w_pol, 
                    method="glm", family=binomial(), trControl=train_control)
 
 roc.model2 <- train(mortality_30d ~ 
-                     sapsii + first_careunit + gender, 
+                     sapsii + first_careunit.x + gender, 
                    data=analysis_df_w_pol, 
                    method="glm", family=binomial(), trControl=train_control)
 
@@ -492,12 +492,10 @@ for (j in c(1,2))
   
   auc.results <- do.call(rbind, auc.list)
 
-  if(j == 1)
-  {
+  if(j == 1){
     print("AUROC difference bootstrap 95% CI:")
   }
-  else 
-  {
+  else {
     print("AUPRC difference bootstrap 95% CI:")
   }
   
