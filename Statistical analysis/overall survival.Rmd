@@ -6,11 +6,11 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = F)
 #knitr::opts_knit$set(root.dir = "~/path to project/")
 ```
 
-```{r libraries, include=FALSE}
+```{r libraries, include=FALSE, echo = F}
 library(data.table)
 library(survival)
 library(tidyverse)
@@ -23,12 +23,17 @@ library(survminer)
 
 set.seed(4375) # "HDSL"
 
-admissions_df <- read.csv("../../../MIMIC/sentiment_data/patient_df.csv")
-sapsii_df <- read.csv("../../../MIMIC/sentiment_data/sapsii_df.csv")
-notes_df <- read_csv("../../../MIMIC/sentiment_data/notes_df_sntmnt.csv")
+data_dir = "../../../MIMIC/sentiment_data/"
+admissions_df <- read.csv(paste0(data_dir, "patient_df.csv"))
+sapsii_df <- read.csv(paste0(data_dir, "sapsii_df.csv"))
+notes_df <- fread(paste0(data_dir, "notes_df_sntmnt.csv"))
 
 notes_df$text <- NULL
 
+# change it to 
+notes_df <- notes_df %>%
+  mutate(hadm_id = as.integer(hadm_id))
+  
 notes_df <- notes_df %>% left_join(admissions_df, by="hadm_id")
 
 # Get the difference between the time of death and the time that the note was taken.
@@ -99,8 +104,8 @@ analysis_df_w_pol <- analysis_df %>%
 
 # Mean polarity and subjectivity quartiles
 
-```{r}
-output.folder <- "../../../MIMIC/"
+```{r mean plarity and subjective quartiles}
+output.folder <- ""
 
 gg_color_hue <- function(n) {
   hues = seq(15, 375, length = n + 1)
