@@ -5,12 +5,12 @@ date: "March 2018"
 output: pdf_document
 ---
   
-```{r setup, include=FALSE}
+```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-# knitr::opts_knit$set(root.dir = "~/path to project/")
+#knitr::opts_knit$set(root.dir = "~/Documents/MIMIC-nursing-note-sentiment/Statistical analysis")
 ```
 
-```{r libraries, include=FALSE}
+```{r libraries, include = FALSE, echo=F}
 library(data.table)
 library(rms)
 library(tidyverse)
@@ -28,11 +28,17 @@ library(questionr)
 ```{r main}
 set.seed(4375) # "HDSL"
 
-admissions_df <- read.csv("../../../MIMIC/sentiment_data/patient_df.csv")
-sapsii_df <- read_csv("../../../MIMIC/sentiment_data/sapsii_df.csv")
-notes_df <- read_csv("../../../MIMIC/sentiment_data/notes_df_sntmnt.csv")
-mimicii_patients_df <- read.csv("../../../MIMIC/sentiment_data/mimic2_patients_df.csv")
-mimicii_admissions_df <- read.csv("../../../MIMIC/sentiment_data/mimic2_admissions_df.csv")
+data_dir = "../../../MIMIC/sentiment_data/"
+admissions_df <- read.csv(paste0(data_dir, "patient_df.csv"))
+sapsii_df <- read_csv(paste0(data_dir, "sapsii_df.csv"))
+notes_df <- fread(paste0(data_dir, "notes_df_sntmnt.csv"))
+mimicii_patients_df <- read.csv(paste0(data_dir, "mimic2_patients_df.csv"))
+mimicii_admissions_df <- read.csv(paste0(data_dir, "mimic2_admissions_df.csv"))
+
+# change the type as fread reads as "hadm_id" in chr
+notes_df <- notes_df %>%
+  mutate(hadm_id = as.integer(hadm_id))
+
 
 notes_df$text <- NULL
 
@@ -70,6 +76,8 @@ analysis_df[is.na(mortality_30d), mortality_30d := 0]
 analysis_df$mortality_30d <- factor(analysis_df$mortality_30d)
 
 ```
+
+# We might have problem here
 
 ```{r main2}
 
@@ -128,24 +136,25 @@ t.test(a_df_counted_nonzeronotes_exp$n, a_df_counted_nonzeronotes_surv$n,
 
 notes_df <- notes_df %>% 
   group_by(hadm_id) %>% 
-  #summarize(mean_polarity = mean(polarity),
-  #          mean_subjectivity = mean(subjectivity))
-  mutate(mean_polarity = mean(polarity),
-            mean_subjectivity = mean(subjectivity))
+  summarize(mean_polarity = mean(polarity),
+           mean_subjectivity = mean(subjectivity))
+  # mutate(mean_polarity = mean(polarity),
+  #           mean_subjectivity = mean(subjectivity))
+  
 # joining notes by admission id.
 analysis_df <- analysis_df %>% left_join(notes_df, by="hadm_id", copy = TRUE)
 
 # Do we have to rename here?
-analysis_df <- analysis_df %>%
-  rename(icustay_id = icustay_id.x)
+# analysis_df <- analysis_df %>%
+#   rename(icustay_id = icustay_id.x)
 
 # joining SAPS II and SOFA scores by ICU stay ID.
 analysis_df <- analysis_df %>% left_join(sapsii_df, by="icustay_id", copy=TRUE)
 
 
 ### new add ( for the next chunk)
-analysis_df <- analysis_df %>%
-  rename(gender = gender.x, first_admit_age = first_admit_age.x, first_careunit = first_careunit.y)
+# analysis_df <- analysis_df %>%
+#   rename(gender = gender.x, first_admit_age = first_admit_age.x, first_careunit = first_careunit.y)
 ```
 
 Notice there are some data where patients are recorded to be very old (~300 yrs old). This was done by MIMIC to anonymize patients over the age of 89.
@@ -153,16 +162,6 @@ Notice there are some data where patients are recorded to be very old (~300 yrs 
 However, in MIMIC-II, the ages of patients were recorded after death. Therefore, we will randomly sample ages from the >89 group from MIMIC-II and assign their ages to the >89 group from MIMIC-III. We will do so by gender/sex since as we will see, their age distributions are slightly different.
 
 ```{r}
-
-# rename mimicii columns
-mimicii_admissions_df <- mimicii_admissions_df %>%
-  rename(subject_id = SUBJECT_ID, hadm_id = HADM_ID,
-         admit_dt = ADMIT_DT, disch_dt = DISCH_DT)
-
-mimicii_patients_df <- mimicii_patients_df %>%
-  rename(subject_id = SUBJECT_ID, sex = SEX,
-         dob = DOB, dod = DOD,
-         hospital_expire_flag = HOSPITAL_EXPIRE_FLG)
 mimicii_age_dataset <- mimicii_admissions_df %>%
   group_by(subject_id) %>%
   arrange(admit_dt) %>%
@@ -221,7 +220,7 @@ sum(adf.expired$first_careunit == "TSICU") / nrow(adf.expired)
 # Perform asymptotic chi-square test of independence between the 
 # variables "first_careunit" and "mortality_30d". We use asymptotic test because
 # this problem is too large for Fisher's exact test.
-freq.table <- table(analysis_df_w_pol$mortality_30d, analysis_df_w_pol$first_careunit.x)
+freq.table <- table(analysis_df_w_pol$mortality_30d, analysis_df_w_pol$first_careunit)
 freq.table
 chisq.test(freq.table)
 
@@ -280,37 +279,26 @@ spearman.test(analysis_df_w_pol$mean_subjectivity, analysis_df_w_pol$sapsii)
 # Fit logistic regression model and plot results
 
 ```{r LR}
-
 analysis_df_w_pol$mean_polarity <- 10 * analysis_df_w_pol$mean_polarity
 analysis_df_w_pol$mean_subjectivity <- 10 * analysis_df_w_pol$mean_subjectivity
-
 gg_color_hue <- function(n) {
   hues = seq(15, 375, length = n + 1)
   hcl(h = hues, l = 65, c = 100)[1:n]
 }
-
 model_mortality_30d = glm(mortality_30d ~ mean_polarity + 
                             + mean_subjectivity + sapsii + 
-                            first_careunit.x + gender, 
+                            first_careunit + gender, 
                           family=binomial(link='logit'), 
                           data=analysis_df_w_pol)
-
 summary(model_mortality_30d)
-
 model.odds.ratio <- odds.ratio(model_mortality_30d)
-
 model.odds.ratio
-
 lrm_30d <- lrm(model_mortality_30d$formula, data = analysis_df_w_pol)
-
 # Calculate Nagelkerke pseudo-R^2
 lrm_30d$stats["R2"]
-
-output.folder = "../../../MIMIC/"
-
+output.folder = ""
 analysis_df_w_pol$mean_polarity <- 0.1 * analysis_df_w_pol$mean_polarity
 analysis_df_w_pol$mean_subjectivity <- 0.1 * analysis_df_w_pol$mean_subjectivity
-
 pol.vs.mort.plot <- ggplot(analysis_df_w_pol, aes(mean_polarity, mortality_30d))
 setDF(analysis_df_w_pol)
 mean_mean_polarity_df <- 
@@ -318,20 +306,17 @@ mean_mean_polarity_df <-
              mean_mean_polarity = 
                c(mean(analysis_df_w_pol[analysis_df_w_pol$mortality_30d == 1, "mean_polarity"]),
                  mean(analysis_df_w_pol[analysis_df_w_pol$mortality_30d == 0, "mean_polarity"])))
-
 jitter.plot.mp <- pol.vs.mort.plot + geom_jitter(size = 0.005, alpha=1) +
   xlab("Mean polarity") + 
   scale_y_discrete("30-day mortality", labels = c("0" = "survived", "1" = "expired")) +
   geom_vline(aes(xintercept = mean_mean_polarity, colour = mortality_30d), data=mean_mean_polarity_df) +
   scale_colour_discrete(name = "30-day mortality") + theme(legend.position = "none", text=element_text(size=8))
-
 sub.vs.mort.plot <- ggplot(analysis_df_w_pol, aes(mean_subjectivity, mortality_30d))
 mean_mean_subjectivity_df <-
   data.frame(mortality_30d = c("expired", "survived"),
              mean_mean_subjectivity = 
                c(mean(analysis_df_w_pol[analysis_df_w_pol$mortality_30d == 1, "mean_subjectivity"]),
                  mean(analysis_df_w_pol[analysis_df_w_pol$mortality_30d == 0, "mean_subjectivity"])))
-
 jitter.plot.ms <- sub.vs.mort.plot + geom_jitter(size = 0.005, alpha = 1) + 
   xlab("Mean subjectivity") + 
   scale_y_discrete("30-day mortality", labels = c("0" = "survived", "1" = "expired")) +
@@ -339,16 +324,11 @@ jitter.plot.ms <- sub.vs.mort.plot + geom_jitter(size = 0.005, alpha = 1) +
   scale_colour_discrete(name = "30-day mortality") + 
   theme(text=element_text(size=8), axis.title.y = element_blank(), 
         axis.text.y = element_blank(), axis.ticks.y = element_blank())
-
 jitter.plot <- grid.arrange(jitter.plot.mp, jitter.plot.ms, ncol = 2)
-
 jitter.plot
-
 ggsave(file.path(output.folder, "jitter_plot.tiff"), 
        plot = jitter.plot, width=150, height=84, units="mm", dpi=300)
-
 # Mixture histograms
-
 setDT(analysis_df_w_pol)
 levels(analysis_df_w_pol$mortality_30d) <- c("survived", "expired")
 pol.mixture.histogram <- ggplot() +
@@ -362,7 +342,6 @@ pol.mixture.histogram <- ggplot() +
                     name="30-day\nmortality") +
   scale_colour_manual(values = gg_color_hue(2), name="30-day\nmortality") + 
   theme(text = element_text(size = 8), legend.position = "none")
-
 sub.mixture.histogram <- ggplot() +
   geom_histogram(aes(y = ..density.., x = mean_subjectivity, fill=mortality_30d), 
                  alpha = 0.3, bins = 60, data=analysis_df_w_pol[mortality_30d == "expired"]) +
@@ -375,11 +354,8 @@ sub.mixture.histogram <- ggplot() +
   scale_colour_manual(values = gg_color_hue(2), name="30-day\nmortality") + 
   theme(text=element_text(size=8), axis.title.y = element_blank(), 
         axis.text.y = element_blank(), axis.ticks.y = element_blank())
-
 mixture.histogram <- grid.arrange(pol.mixture.histogram, sub.mixture.histogram, ncol = 2)
-
 mixture.histogram
-
 ggsave(file.path(output.folder,"mixture_histogram.tiff"), plot = mixture.histogram, 
        width=150, height=84, units="mm", dpi=300)
 
@@ -402,12 +378,12 @@ train_control <- trainControl(method="repeatedcv", number=10, repeats=50,
                               summaryFunction = twoClassSummary, classProbs = TRUE, savePredictions = FALSE)
 
 roc.model1 <- train(mortality_30d ~ 
-                     mean_polarity + mean_subjectivity + sapsii + first_careunit.x + gender, 
+                     mean_polarity + mean_subjectivity + sapsii + first_careunit + gender, 
                    data=analysis_df_w_pol, 
                    method="glm", family=binomial(), trControl=train_control)
 
 roc.model2 <- train(mortality_30d ~ 
-                     sapsii + first_careunit.x + gender, 
+                     sapsii + first_careunit + gender, 
                    data=analysis_df_w_pol, 
                    method="glm", family=binomial(), trControl=train_control)
 
@@ -421,12 +397,12 @@ train_control <- trainControl(method="repeatedcv", number=10, repeats=50,
                               summaryFunction = prSummary, classProbs = TRUE, savePredictions = FALSE)
 
 roc.model1 <- train(mortality_30d ~ 
-                     mean_polarity + mean_subjectivity + sapsii + first_careunit.x + gender, 
+                     mean_polarity + mean_subjectivity + sapsii + first_careunit + gender, 
                    data=analysis_df_w_pol, 
                    method="glm", family=binomial(), trControl=train_control)
 
 roc.model2 <- train(mortality_30d ~ 
-                     sapsii + first_careunit.x + gender, 
+                     sapsii + first_careunit + gender, 
                    data=analysis_df_w_pol, 
                    method="glm", family=binomial(), trControl=train_control)
 
@@ -452,12 +428,12 @@ train_control <- trainControl(method="repeatedcv", number=10, repeats=1,
 seed <- 4375
 set.seed(seed)
 roc.model1 <- train(mortality_30d ~ 
-                      mean_polarity + mean_subjectivity + sapsii + first_careunit.x + gender, 
+                      mean_polarity + mean_subjectivity + sapsii + first_careunit + gender, 
                     data=analysis_df_w_pol, 
                     method="glm", family=binomial(), trControl=train_control)
 set.seed(seed)
 roc.model2 <- train(mortality_30d ~ 
-                      sapsii + first_careunit.x + gender, 
+                      sapsii + first_careunit + gender, 
                     data=analysis_df_w_pol, 
                     method="glm", family=binomial(), trControl=train_control)
 
@@ -474,8 +450,7 @@ auc.df$expired2 <- roc.model2$pred$expired
 
 auc.df <- auc.df[c("obs", "expired1", "expired2")]
 
-for (j in c(1,2))
-{
+for (j in c(1,2)){
   auc.list <- lapply(1:n.boot, function(i){
   
     data.sample <- sample_n(auc.df, nrow(auc.df), replace = TRUE)
@@ -498,8 +473,7 @@ for (j in c(1,2))
   else {
     print("AUPRC difference bootstrap 95% CI:")
   }
-  
+
   print(quantile(auc.results, c(0.025, 0.975)))
 }
 ```
-
