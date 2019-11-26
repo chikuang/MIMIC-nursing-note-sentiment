@@ -2,7 +2,11 @@
 title: "30-day mortality"
 author: "University of Waterloo Health Data Science Lab"
 date: "March 2018"
-output: pdf_document
+output:
+  rmarkdown::html_document: 
+    code_folding: hide
+    theme: cosmo
+  pdf_document: default
 ---
   
 ```{r setup, include = FALSE}
@@ -28,7 +32,7 @@ library(questionr)
 ```{r main}
 set.seed(4375) # "HDSL"
 
-data_dir = "../../../MIMIC/sentiment_data/"
+data_dir = "../../MIMIC/sentiment_data/"
 admissions_df <- read.csv(paste0(data_dir, "patient_df.csv"))
 sapsii_df <- read_csv(paste0(data_dir, "sapsii_df.csv"))
 notes_df <- fread(paste0(data_dir, "notes_df_sntmnt.csv"))
