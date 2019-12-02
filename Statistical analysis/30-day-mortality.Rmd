@@ -10,6 +10,7 @@ output:
 ---
   
 ```{r setup, include = FALSE}
+#RNGkind(sample.kind = "Rounding")
 knitr::opts_chunk$set(echo = TRUE)
 #knitr::opts_knit$set(root.dir = "~/Documents/MIMIC-nursing-note-sentiment/Statistical analysis")
 ```
