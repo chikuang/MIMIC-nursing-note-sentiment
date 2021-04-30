@@ -66,9 +66,9 @@ select tab3.*
 from tab3
 )
 select * 
-from mimiciii.sapsii
+from public.sapsii
 where icustay_id in (select icustay_id from tab4)
 order by subject_id;
 
-\copy (select * from FOO) to '~/Desktop/sepsii_df.csv' HEADER CSV
+\copy (select * from FOO) to '/mnt/d/work/sapsii_df.csv' HEADER CSV
 DROP TABLE IF EXISTS FOO CASCADE;

@@ -69,5 +69,5 @@ from mimiciii.noteevents
 where hadm_id in (select hadm_id from tab3) and category in ('Nursing/other', 'Nursing')
 order by subject_id;
 
-\copy (select * from FOO) to '~/Desktop/note_df.csv' HEADER CSV
+\copy (select * from FOO) to '/mnt/d/work/notes_df.csv' HEADER CSV
 DROP TABLE IF EXISTS FOO CASCADE;

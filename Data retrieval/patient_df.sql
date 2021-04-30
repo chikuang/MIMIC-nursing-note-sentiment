@@ -64,7 +64,7 @@ order by subject_id, icustay_id
 ) 
 
 SELECT * from tab4;
-\copy (select * from FOO) to '~/Desktop/patient_df.csv' HEADER CSV
+\copy (select * from FOO) to '/mnt/d/work/patient_df.csv' HEADER CSV
 DROP TABLE IF EXISTS FOO CASCADE;
 --\copy (select * from tab4) to 'patient_df.csv' HEADER CSV
 --\copy (select * from tab4) to '~/Desktop/patient_df.csv' (FORMAT csv, header)
